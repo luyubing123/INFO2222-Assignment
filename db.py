@@ -33,6 +33,26 @@ def get_user(username: str):
     with Session(engine) as session:
         return session.get(User, username)
 
+# insert a new friend request
+def insert_friendrequest(username: str, friendname:str):
+    with Session(engine) as session:
+        friendrequest = FriendRequest(username=username,friendname=friendname,status = "Pending")
+        session.add(friendrequest)
+        session.commit() 
+
+# get friend request
+def get_friendrequest(username:str):
+    with Session(engine) as session:
+      results = session.query(FriendRequest).filter(FriendRequest.username == username)
+    return results
+
+# get received friend request
+def get_received_friendrequest(username:str):
+    with Session(engine) as session:
+      results = session.query(FriendRequest).filter(FriendRequest.friendname == username)
+    return results
+
+
 # insert a new friendship
 def insert_friendship(username: str, friendname:str):
     with Session(engine) as session:

@@ -52,6 +52,26 @@ def login_user():
 
     return url_for('home', username=request.json.get("username"))
 
+@app.route("/home/addfriend", methods=["POST"])
+def add_friend():
+    if not request.is_json:
+        abort(404)
+
+    username = request.json.get("username")
+    friendname = request.json.get("friendname")
+ 
+    user_to_add =  db.get_user(friendname)
+    if user_to_add is None:
+        return "Error: User does not exist!"
+    
+    if friendname == username:
+        return "Error: Cann't add yourself"
+    
+    db.insert_friendrequest(username,friendname)
+    return "Request send"
+
+
+
 # handles a get request to the signup page
 @app.route("/signup")
 def signup():
@@ -82,13 +102,26 @@ def home():
         abort(404)
     
     # store current user's friends in a list
-
     friendship = []
     results = db.get_friendship(request.args.get("username"))
     for r in results:
         friendship.append(r.friendname)
 
-    return render_template("home.jinja", username=request.args.get("username"),friendship = friendship)
+    friendrequest = []
+    request_results = db.get_friendrequest(request.args.get("username"))
+    for r in request_results:
+        friendrequest.append(r.friendname +": " + r.status)
+
+    received_friendrequest = []
+    received_results = db.get_received_friendrequest(request.args.get("username"))
+    for r in received_results:
+        received_friendrequest.append(r.username)
+         
+
+
+    return render_template("home.jinja", username=request.args.get("username"), 
+                           friendship = friendship,friendrequest = friendrequest,
+                           received_friendrequest = received_friendrequest)
 
 
 

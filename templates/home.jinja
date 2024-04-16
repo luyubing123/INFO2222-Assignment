@@ -58,6 +58,8 @@
         <button onclick="leave()">Leave Room</button>
     </section>
 
+
+
     <section id="friends_list", style="top:120px;right:500px; position:fixed">
         <p class="text">Friends List: </p>
         <ul>
@@ -67,16 +69,34 @@
     </ul>
     </section>
 
-    <section id="friends_request", style="top:120px;right:280px; position:fixed">
-        <p class="text">Friends Request: </p>
+
+    <section id="send_request", style="top:120px;left:1100px; position:fixed">
+        <p class="text">Sent Friends Request: </p>
+        <ul>
+        {% for friend in friendrequest %}
+            <li>{{ friend }}</li>
+        {% endfor %}
+    </ul>
     </section>
+
+
+    <section id="received_request", style="top:400px;left:1100px; position:fixed">
+        <p class="text">Received Friends Request: </p>
+        <ul>
+        {% for friend in received_friendrequest %}
+            <li>{{ friend }}</li>
+        {% endfor %}
+    </ul>
+    </section>
+
 
     <section id="add_friend", style="top:546px;left:360px; position:fixed">
         <p class="text">Search by name: </p>
-        <input id="receiver" placeholder="username">
+        <input id="friendname_to_add" placeholder="username">
         <!-- MDN says its bad practice to use the onclick attribute,
         but we're using it anyways coz its easy :)-->
-        <button>Add</button>
+        <button onclick="addfriend()">Add</button>
+        <p id="add_status"></p>
     </section>
 
     
@@ -130,6 +150,21 @@
     socket.on("incoming", (msg, color="black") => {
         add_message(msg, color);
     })
+    
+    // send message to server when user click 
+    async function addfriend() {
+        
+            let addfriendURL = "{{ url_for('add_friend') }}";
+
+            let res = await axios.post(addfriendURL, {
+                friendname: $("#friendname_to_add").val(),
+                username: username      
+            });
+
+            document.getElementById("add_status").innerHTML = res.data;
+      
+            return;
+    }
     
     // we'll send the message to the server by emitting a "send" event
     function send() {

@@ -32,11 +32,14 @@ class User(Base):
 
 class Friendship(Base):
     __tablename__ = "friendship"
- 
     username: Mapped[str] = mapped_column(String,ForeignKey('user.username'), primary_key=True)
     friendname: Mapped[str] = mapped_column(String,ForeignKey('user.username'),primary_key=True)
 
-
+class FriendRequest(Base):
+    __tablename__ = "friendrequest"
+    username: Mapped[str] = mapped_column(String,ForeignKey('user.username'), primary_key=True)
+    friendname: Mapped[str] = mapped_column(String,ForeignKey('user.username'),primary_key=True)
+    status: Mapped[str] = mapped_column(String)
 
 
 

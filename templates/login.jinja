@@ -51,7 +51,6 @@
             // if the server sends in an error message, alert() the error message
             if (!isValidURL(res.data)) {
                 document.getElementById("p1").innerHTML = res.data;
-                {# alert(res.data); #}
                 return;
             }
 
