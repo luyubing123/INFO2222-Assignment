@@ -19,7 +19,7 @@ app = Flask(__name__)
 
 # secret key used to sign the session cookie
 app.config['SECRET_KEY'] = secrets.token_hex()
-socketio = SocketIO(app)
+socketio = SocketIO(app, debug=True)
 
 # don't remove this!!
 import socket_routes
@@ -80,9 +80,17 @@ def page_not_found(_):
 def home():
     if request.args.get("username") is None:
         abort(404)
-    return render_template("home.jinja", username=request.args.get("username"))
+    
+    # store current user's friends in a list
+
+    friendship = []
+    results = db.get_friendship(request.args.get("username"))
+    for r in results:
+        friendship.append(r.friendname)
+
+    return render_template("home.jinja", username=request.args.get("username"),friendship = friendship)
 
 
 
 if __name__ == '__main__':
-    socketio.run(app)
+    socketio.run(app, debug=True)

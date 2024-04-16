@@ -57,6 +57,29 @@
         <button onclick="send()">Send</button>
         <button onclick="leave()">Leave Room</button>
     </section>
+
+    <section id="friends_list", style="top:120px;right:500px; position:fixed">
+        <p class="text">Friends List: </p>
+        <ul>
+        {% for friend in friendship %}
+            <li>{{ friend }}</li>
+        {% endfor %}
+    </ul>
+    </section>
+
+    <section id="friends_request", style="top:120px;right:280px; position:fixed">
+        <p class="text">Friends Request: </p>
+    </section>
+
+    <section id="add_friend", style="top:546px;left:360px; position:fixed">
+        <p class="text">Search by name: </p>
+        <input id="receiver" placeholder="username">
+        <!-- MDN says its bad practice to use the onclick attribute,
+        but we're using it anyways coz its easy :)-->
+        <button>Add</button>
+    </section>
+
+    
 </main>
 
 <script src="/static/js/libs/socket.io.min.js"></script>

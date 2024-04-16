@@ -16,7 +16,7 @@ Path("database") \
 # "database/main.db" specifies the database file
 # change it if you wish
 # turn echo = True to display the sql output
-engine = create_engine("sqlite:///database/main.db", echo=False)
+engine = create_engine("sqlite:///database/main.db", echo=True)
 
 # initializes the database
 Base.metadata.create_all(engine)
@@ -32,3 +32,16 @@ def insert_user(username: str, password: str):
 def get_user(username: str):
     with Session(engine) as session:
         return session.get(User, username)
+
+# insert a new friendship
+def insert_friendship(username: str, friendname:str):
+    with Session(engine) as session:
+        friendship = Friendship(username=username,friendname=friendname)
+        session.add(friendship)
+        session.commit()
+
+# # gets a user friendship
+def get_friendship(username:str):
+    with Session(engine) as session:
+      results = session.query(Friendship).filter(Friendship.username == username)
+    return results
