@@ -52,6 +52,19 @@ def get_received_friendrequest(username:str):
       results = session.query(FriendRequest).filter(FriendRequest.friendname == username)
     return results
 
+# modify request status
+def modify_status_request(username:str, friendname:str, new_status: str):
+    with Session(engine) as session:
+       requests = session.query(FriendRequest).all()
+    # match the corresponding row
+       for r in requests:
+          if(r.username == friendname and r.friendname == username):
+            r.status = new_status
+       session.commit()
+       
+
+
+
 
 # insert a new friendship
 def insert_friendship(username: str, friendname:str):
@@ -60,8 +73,33 @@ def insert_friendship(username: str, friendname:str):
         session.add(friendship)
         session.commit()
 
-# # gets a user friendship
-def get_friendship(username:str):
+# gets a user friendship
+def get_friendship_sent_from_you(username:str):
     with Session(engine) as session:
-      results = session.query(Friendship).filter(Friendship.username == username)
-    return results
+      result = session.query(Friendship).filter(Friendship.username == username)
+    return result
+
+def get_friendship_received_by_you(username):
+    with Session(engine) as session:
+      result = session.query(Friendship).filter(Friendship.friendname == username)
+    return result
+
+# check friendship exists
+def friendship_exist(username:str, friendname:str):
+    with Session(engine) as session:
+       friendship = session.query(FriendRequest).all()
+    # match the corresponding row
+       for f in friendship:
+          if(f.username == friendname and f.friendname == username) or (f.username == username and f.friendname == friendname):
+             return True 
+    return False
+
+
+
+# delete friendship
+def delete_all():
+    with Session(engine) as session:
+       session.query(Friendship).delete()
+       session.commit()
+       session.query(FriendRequest).delete()
+       session.commit()
