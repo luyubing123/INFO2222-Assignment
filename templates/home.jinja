@@ -1,6 +1,9 @@
 <!-- 
     Here you'll find the main exhibit: the chat application code. Feel free to look around!
 -->
+
+
+
 {% extends 'base.jinja' %}
 
 
@@ -49,6 +52,7 @@
         <button onclick="join_room()">Chat</button>
     </section>
 
+
     <!-- The (message) input box is set to display: none initially, 
     this means the input box is "invisible" initially-->
     <section id="input_box" style="display: none" >
@@ -82,7 +86,7 @@
 
     <section id="received_request", style="top:400px;left:1100px; position:fixed">
         <p class="text">Received Friends Request: </p>
-        <ul>
+        {# <ul>
         {% for friend in received_pending_friendrequest %}
             <li>{{ friend }}</li>
             <button onclick="AcceptRequest('{{ friend }}',this)">Accept</button>
@@ -93,7 +97,7 @@
             <li>{{ friend }}</li>
         {% endfor %}
 
-    </ul>
+    </ul> #}
     </section>
 
 
@@ -102,7 +106,7 @@
         <input id="friendname_to_add" placeholder="username">
         <!-- MDN says its bad practice to use the onclick attribute,
         but we're using it anyways coz its easy :)-->
-        <button onclick="addfriend()">Add</button>
+        <button onclick="sendFriendRequest()">Add</button>
         <p id="add_status"></p>
     </section>
 
@@ -110,7 +114,27 @@
 </main>
 
 <script src="/static/js/libs/socket.io.min.js"></script>
+<script src="/static/js/libs/sha256.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.0.0/jsencrypt.min.js"></script>
+
 <script>
+
+    function generateKeyPair() {
+        // Create a new JSEncrypt object
+        const encrypt = new JSEncrypt();
+
+        // Generate a new key pair (default is RSA, you can specify key size if needed)
+        encrypt.getKey();
+
+        // Get the public and private keys
+        const publicKey = encrypt.getPublicKey();
+        const privateKey = encrypt.getPrivateKey();
+
+        return { publicKey, privateKey };
+    }
+    const keys = generateKeyPair();
+
     let room_id = 0;
 
     // when the user presses the "Enter" key inside of the "message box", 
@@ -157,7 +181,101 @@
     socket.on("incoming", (msg, color="black") => {
         add_message(msg, color);
     })
+
+    function addFriendRequestItem(friendname) {
+       let receivedRequestSection = document.getElementById("received_request");
+
+       let listItem = document.createElement("div");
+       listItem.classList.add("friend-request-item");
+
+       let friendNamePara = document.createElement("p");
+       friendNamePara.textContent = friendname;
+
+       let acceptBtn = document.createElement("button");
+       acceptBtn.textContent = "Accept";
+
+
+       let rejectBtn = document.createElement("button");
+       rejectBtn.textContent = "Reject";
     
+
+       listItem.appendChild(friendNamePara);
+       listItem.appendChild(acceptBtn);
+       listItem.appendChild(rejectBtn);
+
+       receivedRequestSection.appendChild(listItem);
+}
+
+    socket.on("send_request_success", (data) => {
+      let msg = data.msg;
+      let cur_username = data.username;
+      let friendname = data.friendname;
+      document.getElementById("add_status").innerHTML = username+" Send success " + friendname;
+   
+    });
+
+
+    function sendFriendRequest() {
+        // Replace with actual username value
+        let friendname = $("#friendname_to_add").val();
+        socket.emit("send_friend_request", username, friendname);
+    }
+
+    // we'll send the message to the server by emitting a "send" event
+    function send() {
+        let message = $("#message").val();
+        $("#message").val("");  
+        let hashedMessage = CryptoJS.SHA256(message).toString();
+        let pubkey = keys.publicKey
+
+        socket.emit("send", username, message, hashedMessage, pubkey,room_id);  
+    } 
+
+    // we emit a join room event to the server to join a room
+    function join_room() {
+       
+        let receiver = $("#receiver").val();
+        let pubkey = keys.publicKey
+        // pass in the receiver of our message to the server
+        // as well as the current user's username
+        socket.emit("join", username, receiver,(res) => {
+            // res is a string with the error message if the error occurs
+            // this is a pretty bad way of doing error handling, but watevs
+            if (typeof res != "number") {
+                alert(res);
+                return;
+            }
+
+            // set the room id variable to the room id returned by the server
+            room_id = res;
+            Cookies.set("room_id", room_id);
+
+            // now we'll show the input box, so the user can input their message
+            $("#chat_box").hide();
+            $("#input_box").show();
+        });
+
+     
+    }
+
+    // function when the user clicks on "Leave Room"
+    // emits a "leave" event, telling the server that we want to leave the room
+    function leave() {
+        Cookies.remove("room_id");
+        socket.emit("leave", username, room_id);
+        $("#input_box").hide();
+        $("#chat_box").show();
+    }
+
+    // function to add a message to the message box
+    // called when an incoming message has reached a client
+    function add_message(message, color) {
+        let box = $("#message_box");
+        let child = $(`<p style="color:${color}; margin: 0px;"></p>`).text(message);
+        box.append(child);
+    }
+
+
     // send message to server when user click add button
     async function addfriend() {
         
@@ -206,56 +324,6 @@
             }
 
             return;
-    }
-    
-    // we'll send the message to the server by emitting a "send" event
-    function send() {
-        let message = $("#message").val();
-        $("#message").val("");
-        socket.emit("send", username, message, room_id);  
-    } 
-
-    // we emit a join room event to the server to join a room
-    function join_room() {
-       
-        let receiver = $("#receiver").val();
-
-        // pass in the receiver of our message to the server
-        // as well as the current user's username
-        socket.emit("join", username, receiver, (res) => {
-            // res is a string with the error message if the error occurs
-            // this is a pretty bad way of doing error handling, but watevs
-            if (typeof res != "number") {
-                alert(res);
-                return;
-            }
-
-            // set the room id variable to the room id returned by the server
-            room_id = res;
-            Cookies.set("room_id", room_id);
-
-            // now we'll show the input box, so the user can input their message
-            $("#chat_box").hide();
-            $("#input_box").show();
-        });
-     
-    }
-
-    // function when the user clicks on "Leave Room"
-    // emits a "leave" event, telling the server that we want to leave the room
-    function leave() {
-        Cookies.remove("room_id");
-        socket.emit("leave", username, room_id);
-        $("#input_box").hide();
-        $("#chat_box").show();
-    }
-
-    // function to add a message to the message box
-    // called when an incoming message has reached a client
-    function add_message(message, color) {
-        let box = $("#message_box");
-        let child = $(`<p style="color:${color}; margin: 0px;"></p>`).text(message);
-        box.append(child);
     }
     
 </script>

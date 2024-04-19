@@ -41,16 +41,44 @@ def disconnect():
         return
     emit("incoming", (f"{username} has disconnected", "red"), to=int(room_id))
 
+
+@socketio.on('send_friend_request')
+def send_friend_request(username, friendname):
+    user_to_add = db.get_user(friendname)
+
+    print(username)
+    print(friendname)
+
+    if user_to_add is None:
+        msg = "Error: User does not exist!"
+    elif friendname == username:
+        msg = "Error: Cannot add yourself"
+    elif db.friendship_exist(username, friendname):
+        msg = friendname + " is already your friend"
+    else:
+        db.insert_friendrequest(username, friendname)
+        msg = "Request sent"
+
+    emit('send_request_success', {'msg': msg, 'username': username, 'friendname': friendname},room=username)
+    emit('receive_friend_request', {'msg': msg, 'username': username, 'friendname': friendname},room=friendname)
+
+    # emit("request", {'msg': msg, 'username': username, 'friendname': friendname})  # Emitting the message as part of the data
+
+    
 # send message event handler
 @socketio.on("send")
-def send(username, message, room_id):
+def send(username, message, hashedMessage,pubkey, room_id):
+    print(username + " " + message)
+    print(hashedMessage)
+    print(pubkey)
+    print(room_id)
     emit("incoming", (f"{username}: {message}"), to=room_id)
     
 # join room event handler
 # sent when the user joins a room
 @socketio.on("join")
 def join(sender_name, receiver_name):
-    
+   
     receiver = db.get_user(receiver_name)
     if receiver is None:
         return "Unknown receiver!"
