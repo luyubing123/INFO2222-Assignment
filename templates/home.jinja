@@ -86,7 +86,7 @@
 
     <section id="received_request", style="top:400px;left:1100px; position:fixed">
         <p class="text">Received Friends Request: </p>
-        {# <ul>
+        <ul>
         {% for friend in received_pending_friendrequest %}
             <li>{{ friend }}</li>
             <button onclick="AcceptRequest('{{ friend }}',this)">Accept</button>
@@ -97,7 +97,7 @@
             <li>{{ friend }}</li>
         {% endfor %}
 
-    </ul> #}
+    </ul>
     </section>
 
 
@@ -106,7 +106,7 @@
         <input id="friendname_to_add" placeholder="username">
         <!-- MDN says its bad practice to use the onclick attribute,
         but we're using it anyways coz its easy :)-->
-        <button onclick="sendFriendRequest()">Add</button>
+        <button onclick="addfriend()">Add</button>
         <p id="add_status"></p>
     </section>
 
@@ -133,7 +133,15 @@
 
         return { publicKey, privateKey };
     }
+    // self pair of public and private key
     const keys = generateKeyPair();
+
+    //encryt object used for encrypting message further
+    const encrypt = new JSEncrypt();
+
+    //decrypt object and set private key
+    const decryptor = new JSEncrypt();
+    decryptor.setPrivateKey(keys.privateKey);
 
     let room_id = 0;
 
@@ -182,60 +190,72 @@
         add_message(msg, color);
     })
 
-    function addFriendRequestItem(friendname) {
-       let receivedRequestSection = document.getElementById("received_request");
+    let publicKeyExchanged = false; // Flag to track if public key has been exchanged
 
-       let listItem = document.createElement("div");
-       listItem.classList.add("friend-request-item");
+    // exchanged receiver's public key
+    let receicer_pubkey = "";
 
-       let friendNamePara = document.createElement("p");
-       friendNamePara.textContent = friendname;
+    socket.on("receiver_pubkey", function(data){
+         receicer_pubkey = data.pubkey;
+    })
 
-       let acceptBtn = document.createElement("button");
-       acceptBtn.textContent = "Accept";
+    socket.on("chatmessage", function(data){
+       let username = data.user;
+       let decrypted_msg = decryptor.decrypt(data.enc_msg);
+       let hash_received = data.h_msg
 
+       let msg;
 
-       let rejectBtn = document.createElement("button");
-       rejectBtn.textContent = "Reject";
-    
-
-       listItem.appendChild(friendNamePara);
-       listItem.appendChild(acceptBtn);
-       listItem.appendChild(rejectBtn);
-
-       receivedRequestSection.appendChild(listItem);
-}
-
-    socket.on("send_request_success", (data) => {
-      let msg = data.msg;
-      let cur_username = data.username;
-      let friendname = data.friendname;
-      document.getElementById("add_status").innerHTML = username+" Send success " + friendname;
-   
-    });
+       if (decrypted_msg === null) {
+          msg = username + ": " + record_msg; // Assuming you want to use the input message if decryption fails
+        } else {
+            let hash_dec_msg = CryptoJS.SHA256(decrypted_msg).toString();
+            if(hash_received === hash_dec_msg){
+                msg = username + ": " + decrypted_msg;
+            } else{
+                msg = "Message may be corrupted by the third party";
+            }
+        }  
+        add_message(msg, "black"); // Assuming add_message function takes a message and color parameter
+});
 
 
-    function sendFriendRequest() {
-        // Replace with actual username value
-        let friendname = $("#friendname_to_add").val();
-        socket.emit("send_friend_request", username, friendname);
-    }
-
+    let record_msg = "";
     // we'll send the message to the server by emitting a "send" event
     function send() {
         let message = $("#message").val();
+        record_msg = message;
         $("#message").val("");  
-        let hashedMessage = CryptoJS.SHA256(message).toString();
-        let pubkey = keys.publicKey
 
-        socket.emit("send", username, message, hashedMessage, pubkey,room_id);  
+        //hashed message
+        let hashedMessage = CryptoJS.SHA256(message).toString();
+        
+        if (!publicKeyExchanged) {
+        //exchange public key for the first time
+           let pubkey = keys.publicKey;
+           socket.emit("exchange_pubkey", username, pubkey, room_id); 
+           publicKeyExchanged = true; 
+        }
+
+        //encrypted message using receiver's public key
+        let encrypted_msg;
+           if (receicer_pubkey !== "") {
+             encrypt.setPublicKey(receicer_pubkey);
+             encrypted_msg = encrypt.encrypt(message);
+            } else {
+               encrypted_msg = message;
+            }
+       
+        let pubkey = receicer_pubkey;
+
+        socket.emit("send", username, encrypted_msg, hashedMessage,room_id);  
     } 
 
     // we emit a join room event to the server to join a room
     function join_room() {
        
         let receiver = $("#receiver").val();
-        let pubkey = keys.publicKey
+
         // pass in the receiver of our message to the server
         // as well as the current user's username
         socket.emit("join", username, receiver,(res) => {
